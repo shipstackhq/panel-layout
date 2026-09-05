@@ -100,26 +100,25 @@ export function initNodeSizes(
     : node.children.map(() => 1);
   const totalFlex = sizes.reduce((a, b) => a + b, 0);
 
-  let remaining = available;
+  let remaining = Math.max(0, available);
 
   node.children.forEach((child, i) => {
     const isLast = i === node.children.length - 1;
     const fractionalPx = Math.round((sizes[i] / totalFlex) * available);
     const childMin = getNodeMinSize(child, node.dir, slots, tabMap);
 
+    let ownSize: number;
     if (!isLast) {
       const raw = overrides[child.id] ?? fractionalPx;
-      const px = Math.max(childMin, raw);
-      root.style.setProperty(`--panel-${child.id}`, `${px}px`);
-      remaining -= px;
+      ownSize = Math.max(childMin, raw);
+      root.style.setProperty(`--panel-${child.id}`, `${ownSize}px`);
+      remaining = Math.max(0, remaining - ownSize);
+    } else {
+      ownSize = remaining;
     }
 
-    const childAvailW = isH
-      ? (isLast ? Math.max(0, remaining) : (overrides[child.id] ?? fractionalPx))
-      : availW;
-    const childAvailH = isH
-      ? availH
-      : (isLast ? Math.max(0, remaining) : (overrides[child.id] ?? fractionalPx));
+    const childAvailW = isH ? ownSize : availW;
+    const childAvailH = isH ? availH : ownSize;
 
     initNodeSizes(child, childAvailW, childAvailH, root, overrides, slots, tabMap);
   });

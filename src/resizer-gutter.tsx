@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePanelLayoutContext } from "./panel-layout-context";
 import type { LayoutNode } from "./types";
 
@@ -11,9 +11,14 @@ interface ResizerGutterProps {
 export function ResizerGutter({ dir, siblings, index }: ResizerGutterProps) {
   const { rootRef, onResizeEnd, getBounds } = usePanelLayoutContext();
   const [isDragging, setIsDragging] = useState(false);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const leftNode = siblings[index];
   const varName = `--panel-${leftNode.id}`;
+
+  // Remove any still-attached drag listeners if the gutter unmounts mid-drag
+  // (e.g. the layout is conditionally unmounted while the mouse is down).
+  useEffect(() => () => cleanupRef.current?.(), []);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -38,18 +43,24 @@ export function ResizerGutter({ dir, siblings, index }: ResizerGutterProps) {
       root.style.setProperty(varName, `${next}px`);
     };
 
-    const onMouseUp = () => {
-      setIsDragging(false);
+    const cleanup = () => {
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
       document.body.style.cursor = "";
+      cleanupRef.current = null;
+    };
+
+    const onMouseUp = () => {
+      setIsDragging(false);
       const root = rootRef.current;
       if (root) {
         const finalPx = parseFloat(root.style.getPropertyValue(varName) || "0");
         onResizeEnd(leftNode.id, finalPx);
       }
+      cleanup();
     };
 
+    cleanupRef.current = cleanup;
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
     document.body.style.cursor = dir === "h" ? "col-resize" : "row-resize";

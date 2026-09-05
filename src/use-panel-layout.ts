@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { LayoutTemplate, LayoutState, LayoutNode, SlotState, TabDef } from "./types";
 import { TEMPLATES, GUTTER_PX } from "./types";
 import { collectSlotIds, hasValidTree, getNodeMinSize, getSiblingsMinSize, correctCSSVars } from "./node-utils";
@@ -32,28 +32,8 @@ function buildDefaultSlots(slotIds: string[], tabs: TabDef[]): Record<string, Sl
   return slots;
 }
 
-function load(tabs: TabDef[], storageKey: string): LayoutState {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (raw) {
-      const saved = JSON.parse(raw) as LayoutState;
-      const validIds = new Set(tabs.map((t) => t.id));
-      const slotIds = collectSlotIds(saved.tree);
-      const treeOk = hasValidTree(saved.tree);
-      const slotsOk = slotIds.every((sid) => !!saved.slots[sid]);
-
-      if (treeOk && slotsOk) {
-        slotIds.forEach((sid) => {
-          saved.slots[sid].tabIds = saved.slots[sid].tabIds.filter((id) => validIds.has(id));
-          if (!validIds.has(saved.slots[sid].activeTabId)) {
-            saved.slots[sid].activeTabId = saved.slots[sid].tabIds[0] ?? "";
-          }
-        });
-        return saved;
-      }
-    }
-  } catch { /* ignore */ }
-
+/** Pure, environment-independent default — safe to use as the initial render on both server and client. */
+function buildDefaultState(tabs: TabDef[]): LayoutState {
   const tpl = TEMPLATES["two-h"];
   const tree = tpl.buildTree();
   return {
@@ -64,11 +44,59 @@ function load(tabs: TabDef[], storageKey: string): LayoutState {
   };
 }
 
-function save(state: LayoutState, storageKey: string) {
-  try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch { /* ignore */ }
+/**
+ * Reconcile a layout state against the current `tabs` list: drop tab ids
+ * that no longer exist, and append any tabs that aren't assigned to a slot
+ * yet (e.g. new tabs added since the state was last persisted).
+ */
+function reconcileTabs(state: LayoutState, tabs: TabDef[]): LayoutState {
+  const validIds = new Set(tabs.map((t) => t.id));
+  const slotIds = collectSlotIds(state.tree);
+  const assigned = new Set<string>();
+
+  const slots: Record<string, SlotState> = {};
+  slotIds.forEach((sid) => {
+    const tabIds = (state.slots[sid]?.tabIds ?? []).filter((id) => validIds.has(id));
+    tabIds.forEach((id) => assigned.add(id));
+    const activeTabId = validIds.has(state.slots[sid]?.activeTabId ?? "")
+      && tabIds.includes(state.slots[sid].activeTabId)
+      ? state.slots[sid].activeTabId
+      : (tabIds[0] ?? "");
+    slots[sid] = { tabIds, activeTabId };
+  });
+
+  const unassigned = tabs.filter((t) => !assigned.has(t.id));
+  if (unassigned.length > 0 && slotIds.length > 0) {
+    const firstSlot = slotIds[0];
+    slots[firstSlot] = {
+      ...slots[firstSlot],
+      tabIds: [...slots[firstSlot].tabIds, ...unassigned.map((t) => t.id)],
+      activeTabId: slots[firstSlot].activeTabId || unassigned[0].id,
+    };
+  }
+
+  return { ...state, slots };
 }
 
-let dragPayload: { tabId: string; fromSlotId: string } | null = null;
+function readPersisted(storageKey: string): LayoutState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as LayoutState;
+    const slotIds = collectSlotIds(saved.tree);
+    const treeOk = hasValidTree(saved.tree);
+    const slotsOk = slotIds.every((sid) => !!saved.slots[sid]);
+    return treeOk && slotsOk ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function save(state: LayoutState, storageKey: string) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch { /* ignore */ }
+}
 
 export function usePanelLayout(
   tabs: TabDef[],
@@ -76,11 +104,23 @@ export function usePanelLayout(
   storageKey = "panel-layout-v1",
 ): PanelLayoutHandle {
   const tabMap = Object.fromEntries(tabs.map((t) => [t.id, t]));
-  const [state, setState] = useState<LayoutState>(() => load(tabs, storageKey));
+  const [state, setState] = useState<LayoutState>(() => buildDefaultState(tabs));
   const rootRef = useRef<HTMLDivElement>(null);
+  const dragPayloadRef = useRef<{ tabId: string; fromSlotId: string } | null>(null);
 
   const slotsRef = useRef(state.slots);
   slotsRef.current = state.slots;
+
+  // Rehydrate from localStorage after mount only — keeps the first render
+  // identical on server and client so hydration never mismatches.
+  const hydratedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (hydratedKeyRef.current === storageKey) return;
+    hydratedKeyRef.current = storageKey;
+    const persisted = readPersisted(storageKey);
+    if (persisted) setState(reconcileTabs(persisted, tabs));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
 
   const setTemplate = useCallback((template: LayoutTemplate) => {
     setState((prev) => {
@@ -147,13 +187,13 @@ export function usePanelLayout(
   }, [tabMap, storageKey]);
 
   const onTabDragStart = useCallback((tabId: string, fromSlotId: string) => {
-    dragPayload = { tabId, fromSlotId };
+    dragPayloadRef.current = { tabId, fromSlotId };
   }, []);
 
   const onTabDrop = useCallback((toSlotId: string, toIndex?: number) => {
-    if (!dragPayload) return;
-    const { tabId, fromSlotId } = dragPayload;
-    dragPayload = null;
+    if (!dragPayloadRef.current) return;
+    const { tabId, fromSlotId } = dragPayloadRef.current;
+    dragPayloadRef.current = null;
 
     setState((prev) => {
       const fromSlot = prev.slots[fromSlotId];
@@ -196,7 +236,7 @@ export function usePanelLayout(
     });
   }, [tabMap, storageKey]);
 
-  const onTabDragEnd = useCallback(() => { dragPayload = null; }, []);
+  const onTabDragEnd = useCallback(() => { dragPayloadRef.current = null; }, []);
 
   return {
     state,
