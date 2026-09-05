@@ -1,0 +1,319 @@
+/*
+  panel-layout.css
+  ─────────────────────────────────────────────────────────────────
+  Structural styles only — handles flex layout, overflow, cursors,
+  and gutter sizing. Colors, borders, and typography are driven by
+  CSS custom properties so you can theme this without touching the
+  stylesheet. Override any variable on .pl-root or a parent element.
+
+  To use Tailwind instead of this file, see doc.txt.
+  ─────────────────────────────────────────────────────────────────
+*/
+
+/* ── Theme variables (override on .pl-root or :root) ─────────── */
+.pl-root {
+  --pl-gutter-size: 16px;
+
+  /* Colors */
+  --pl-border:              #e5e7eb;
+  --pl-bg:                  #ffffff;
+  --pl-gutter-line:         #e5e7eb;
+  --pl-gutter-hover-bg:     rgba(0, 0, 0, 0.04);
+  --pl-gutter-active-bg:    rgba(59, 130, 246, 0.10);
+  --pl-gutter-active-line:  #3b82f6;
+  --pl-drop-target-bg:      rgba(59, 130, 246, 0.05);
+  --pl-accent:              #3b82f6;
+
+  --pl-tab-color:           #6b7280;
+  --pl-tab-hover-color:     #374151;
+  --pl-tab-active-color:    #3b82f6;
+  --pl-tab-active-border:   #3b82f6;
+  --pl-tab-strip-bg:        #ffffff;
+
+  --pl-empty-color:         #9ca3af;
+
+  --pl-picker-bg:           #ffffff;
+  --pl-picker-border:       #e5e7eb;
+  --pl-picker-shadow:       0 10px 25px rgba(0, 0, 0, 0.12);
+  --pl-picker-item-active-bg:    rgba(59, 130, 246, 0.08);
+  --pl-picker-item-active-border: #3b82f6;
+}
+
+/* Dark mode — add this block or override variables yourself */
+@media (prefers-color-scheme: dark) {
+  .pl-root {
+    --pl-border:              #262626;
+    --pl-bg:                  #171717;
+    --pl-gutter-line:         #404040;
+    --pl-gutter-hover-bg:     rgba(255, 255, 255, 0.04);
+    --pl-tab-color:           #a3a3a3;
+    --pl-tab-hover-color:     #d4d4d4;
+    --pl-tab-active-color:    #60a5fa;
+    --pl-tab-active-border:   #60a5fa;
+    --pl-tab-strip-bg:        #171717;
+    --pl-empty-color:         #737373;
+    --pl-picker-bg:           #262626;
+    --pl-picker-border:       #404040;
+    --pl-picker-shadow:       0 10px 25px rgba(0, 0, 0, 0.5);
+    --pl-picker-item-active-bg:    rgba(96, 165, 250, 0.10);
+    --pl-picker-item-active-border: #60a5fa;
+    --pl-drop-target-bg:      rgba(96, 165, 250, 0.06);
+  }
+}
+
+/* ── Root ─────────────────────────────────────────────────────── */
+.pl-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--pl-bg);
+}
+
+.pl-root-inner {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Groups ───────────────────────────────────────────────────── */
+.pl-group {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+}
+
+.pl-group--h { flex-direction: row; }
+.pl-group--v { flex-direction: column; }
+
+.pl-group-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pl-group-child--border-h { border-right: 1px solid var(--pl-border); }
+.pl-group-child--border-v { border-bottom: 1px solid var(--pl-border); }
+
+/* ── Resizer gutter ───────────────────────────────────────────── */
+.pl-gutter {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  transition: background-color 0.15s;
+}
+
+.pl-gutter--h {
+  width: var(--pl-gutter-size);
+  cursor: col-resize;
+  /* Overlap adjacent panels so the full 16px is the drag hit target */
+  margin-left:  calc(var(--pl-gutter-size) / -2);
+  margin-right: calc(var(--pl-gutter-size) / -2);
+}
+
+.pl-gutter--v {
+  height: var(--pl-gutter-size);
+  cursor: row-resize;
+  margin-top:    calc(var(--pl-gutter-size) / -2);
+  margin-bottom: calc(var(--pl-gutter-size) / -2);
+}
+
+.pl-gutter:hover         { background-color: var(--pl-gutter-hover-bg); }
+.pl-gutter--dragging     { background-color: var(--pl-gutter-active-bg); }
+
+.pl-gutter-line {
+  transition: background-color 0.15s;
+  background-color: var(--pl-gutter-line);
+}
+.pl-gutter--h .pl-gutter-line { width: 1px; height: 100%; }
+.pl-gutter--v .pl-gutter-line { height: 1px; width: 100%; }
+.pl-gutter--dragging .pl-gutter-line { background-color: var(--pl-gutter-active-line); }
+
+/* ── Slot ─────────────────────────────────────────────────────── */
+.pl-slot {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ── Tab strip ────────────────────────────────────────────────── */
+.pl-tab-strip {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  position: relative;
+  border-bottom: 1px solid var(--pl-border);
+  background-color: var(--pl-tab-strip-bg);
+  padding: 0 8px;
+  transition: background-color 0.15s;
+  /* Hide scrollbar */
+  scrollbar-width: none;
+}
+.pl-tab-strip::-webkit-scrollbar { display: none; }
+
+.pl-tab-strip--drop-target { background-color: var(--pl-drop-target-bg); }
+
+.pl-tab-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Tab button ───────────────────────────────────────────────── */
+.pl-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: grab;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--pl-tab-color);
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  user-select: none;
+}
+.pl-tab:hover  { color: var(--pl-tab-hover-color); }
+.pl-tab:active { cursor: grabbing; }
+
+.pl-tab--active {
+  border-bottom-color: var(--pl-tab-active-border);
+  color: var(--pl-tab-active-color);
+}
+
+/* ── Drop indicator ───────────────────────────────────────────── */
+.pl-drop-indicator {
+  position: absolute;
+  top: 4px;
+  width: 2px;
+  border-radius: 9999px;
+  background-color: var(--pl-accent);
+  height: calc(100% - 8px);
+  pointer-events: none;
+}
+.pl-drop-indicator--left  { left: 0; }
+.pl-drop-indicator--right { right: 0; }
+
+/* ── Tab content area ─────────────────────────────────────────── */
+.pl-tab-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--pl-bg);
+}
+
+.pl-tab-empty-hint {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--pl-empty-color);
+}
+
+.pl-tab-empty {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--pl-empty-color);
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────── */
+.pl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Layout picker ────────────────────────────────────────────── */
+.pl-picker-root {
+  position: relative;
+  display: inline-flex;
+}
+
+.pl-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 4px;
+  color: var(--pl-tab-color);
+  border-radius: 4px;
+  transition: color 0.15s, background-color 0.15s;
+}
+.pl-picker-trigger:hover {
+  color: var(--pl-tab-hover-color);
+  background-color: var(--pl-gutter-hover-bg);
+}
+
+.pl-picker-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: var(--pl-picker-bg);
+  border: 1px solid var(--pl-picker-border);
+  box-shadow: var(--pl-picker-shadow);
+  min-width: 180px;
+}
+
+.pl-picker-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+  color: var(--pl-tab-color);
+}
+
+.pl-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.pl-picker-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--pl-border);
+  cursor: pointer;
+  background: none;
+  padding: 6px;
+  color: var(--pl-tab-color);
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+.pl-picker-item:hover {
+  border-color: var(--pl-gutter-line);
+  color: var(--pl-tab-hover-color);
+}
+.pl-picker-item--active {
+  border-color: var(--pl-picker-item-active-border);
+  background-color: var(--pl-picker-item-active-bg);
+  color: var(--pl-tab-active-color);
+}

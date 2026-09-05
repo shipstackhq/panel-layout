@@ -1,0 +1,61 @@
+{
+  "name": "@shipstack/panel-layout",
+  "version": "0.1.0",
+  "description": "A headless, drag-and-drop, resizable panel layout system for React.",
+  "license": "MIT",
+  "author": "Shipstack",
+  "homepage": "https://github.com/shipstackhq/panel-layout#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shipstackhq/panel-layout.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shipstackhq/panel-layout/issues"
+  },
+  "keywords": [
+    "react",
+    "panel",
+    "layout",
+    "resizable",
+    "drag-and-drop",
+    "split-pane",
+    "tabs"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./panel-layout.css": "./dist/panel-layout.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
