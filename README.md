@@ -7,6 +7,8 @@ to `localStorage` automatically.
 
 Zero runtime dependencies beyond React itself.
 
+![panel-layout demo](https://github.com/user-attachments/assets/33ee4166-1790-457f-a8c2-de6f6fc23bae)
+
 ## Install
 
 ```sh
